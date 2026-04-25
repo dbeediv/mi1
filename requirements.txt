@@ -9,3 +9,5 @@ pdfplumber
 rank-bm25
 torch
 transformers
+fpdf2
+groq
