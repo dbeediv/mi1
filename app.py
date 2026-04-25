@@ -1,5 +1,6 @@
 from __future__ import annotations
 import os
+import unicodedata
 from datetime import datetime
 from pathlib import Path
 import streamlit as st
@@ -225,6 +226,22 @@ hr { border-color: rgba(255,140,60,0.1) !important; margin: 1.5rem 0 !important;
 """
 
 
+# ── Unicode safety helper ──────────────────────────────────────────────────────
+
+def _safe_latin1(text: str) -> str:
+    """
+    Normalise Unicode and encode to Latin-1 (the only encoding supported by
+    fpdf2's built-in core fonts such as Helvetica).  Characters that cannot
+    be represented are replaced with '?' so the PDF never raises
+    FPDFUnicodeEncodingException.
+    """
+    if not isinstance(text, str):
+        text = str(text)
+    # NFKD decomposition turns e.g. \u2019 (right single quote) into ASCII '
+    text = unicodedata.normalize("NFKD", text)
+    return text.encode("latin-1", errors="replace").decode("latin-1")
+
+
 # ── Notes helpers ──────────────────────────────────────────────────────────────
 
 def build_markdown_notes(notes: list[dict]) -> str:
@@ -312,7 +329,9 @@ def build_pdf_notes(notes: list[dict]) -> bytes:
             self.set_y(-12)
             self.set_font("Helvetica", "I", 7)
             self.set_text_color(*DIM)
-            self.cell(0, 6, f"Market Intelligence Research Notes  -  Page {self.page_no()}", align="C")
+            self.cell(0, 6, _safe_latin1(
+                f"Market Intelligence Research Notes  -  Page {self.page_no()}"
+            ), align="C")
 
     pdf = NotesPDF(orientation="P", unit="mm", format="A4")
     pdf.set_auto_page_break(auto=True, margin=16)
@@ -331,7 +350,9 @@ def build_pdf_notes(notes: list[dict]) -> bytes:
     pdf.set_font("Helvetica", "", 8)
     pdf.set_text_color(*DIM)
     n = len(notes)
-    pdf.cell(W, 5, f"Generated {datetime.now().strftime('%Y-%m-%d %H:%M')}  -  {n} note{'s' if n != 1 else ''}", ln=True)
+    pdf.cell(W, 5, _safe_latin1(
+        f"Generated {datetime.now().strftime('%Y-%m-%d %H:%M')}  -  {n} note{'s' if n != 1 else ''}"
+    ), ln=True)
     pdf.ln(3)
 
     # orange rule
@@ -349,13 +370,13 @@ def build_pdf_notes(notes: list[dict]) -> bytes:
         pdf.set_line_width(0.3)
         pdf.set_font("Helvetica", "B", 10)
         pdf.set_text_color(*ORANGE)
-        pdf.cell(W, 7, f"  Note {i}", border=1, fill=True, ln=False)
+        pdf.cell(W, 7, _safe_latin1(f"  Note {i}"), border=1, fill=True, ln=False)
         pdf.ln(7)
 
         # Timestamp
         pdf.set_font("Helvetica", "I", 7)
         pdf.set_text_color(*DIM)
-        pdf.cell(W, 4, f"  {entry['timestamp']}", ln=True)
+        pdf.cell(W, 4, _safe_latin1(f"  {entry['timestamp']}"), ln=True)
         pdf.ln(2)
 
         # Question label + body
@@ -364,7 +385,7 @@ def build_pdf_notes(notes: list[dict]) -> bytes:
         pdf.cell(W, 5, "QUESTION", ln=True)
         pdf.set_font("Helvetica", "", 9)
         pdf.set_text_color(*MUTED)
-        pdf.multi_cell(W, 5, entry["question"])
+        pdf.multi_cell(W, 5, _safe_latin1(entry["question"]))
         pdf.ln(2)
 
         # Answer label + body
@@ -373,7 +394,7 @@ def build_pdf_notes(notes: list[dict]) -> bytes:
         pdf.cell(W, 5, "ANSWER", ln=True)
         pdf.set_font("Helvetica", "", 9)
         pdf.set_text_color(*MUTED)
-        pdf.multi_cell(W, 5, entry["answer"])
+        pdf.multi_cell(W, 5, _safe_latin1(entry["answer"]))
         pdf.ln(2)
 
         # Sources
@@ -384,10 +405,9 @@ def build_pdf_notes(notes: list[dict]) -> bytes:
             pdf.set_font("Helvetica", "", 7.5)
             pdf.set_text_color(*DIM)
             for src in entry["sources"]:
-                # FIX: replaced \u2022 bullet (unsupported by Helvetica) with plain ASCII "-"
                 line = (f"  -  {src['file']}  |  Page {src['page']}  |  "
                         f"Section: {src['section']}  |  Score: {src['score']:.4f}")
-                pdf.multi_cell(W, 4.5, line)
+                pdf.multi_cell(W, 4.5, _safe_latin1(line))
             pdf.ln(1)
 
         # Divider
@@ -473,7 +493,6 @@ def render_sources(result):
 
 def speak_answer(answer_text: str) -> None:
     """Inject a Web Speech API block that auto-plays the answer and shows a Stop button."""
-    # Escape backticks and backslashes so the text is safe inside a JS template literal
     safe = answer_text.replace("\\", "\\\\").replace("`", "\\`").replace("$", "\\$")
     html = f"""
 <div id="voice-bar" style="
@@ -504,7 +523,6 @@ def speak_answer(answer_text: str) -> None:
 
 <script>
 (function() {{
-  // Cancel any previous utterance first
   window.speechSynthesis.cancel();
 
   const text    = `{safe}`;
@@ -513,7 +531,6 @@ def speak_answer(answer_text: str) -> None:
   utter.pitch   = 1.0;
   utter.volume  = 1.0;
 
-  // Prefer a natural-sounding English voice if available
   function pickVoice() {{
     const voices = window.speechSynthesis.getVoices();
     const preferred = ["Google US English", "Google UK English Female",
@@ -531,7 +548,6 @@ def speak_answer(answer_text: str) -> None:
     window.speechSynthesis.speak(utter);
   }}
 
-  // voices may load async
   if (window.speechSynthesis.getVoices().length === 0) {{
     window.speechSynthesis.onvoiceschanged = startSpeech;
   }} else {{
