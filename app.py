@@ -363,6 +363,26 @@ h1 {
     text-transform: uppercase;
 }
 
+/* ── Chat Input ── */
+[data-testid="stChatInput"] textarea {
+    background: rgba(26,61,99,0.6) !important;
+    border: 1px solid rgba(74,127,167,0.35) !important;
+    border-radius: 10px !important;
+    color: var(--text) !important;
+    font-family: 'DM Sans', sans-serif !important;
+    font-size: 0.95rem !important;
+    transition: all 0.25s ease !important;
+    backdrop-filter: blur(8px) !important;
+}
+
+[data-testid="stChatInput"] textarea:focus {
+    border-color: var(--mid) !important;
+    box-shadow: 0 0 0 3px rgba(74,127,167,0.15) !important;
+    background: rgba(26,61,99,0.8) !important;
+}
+
+[data-testid="stChatInput"] textarea::placeholder { color: var(--muted) !important; opacity: 0.7; }
+
 /* ── File Uploader ── */
 [data-testid="stFileUploader"] {
     background: rgba(26,61,99,0.4) !important;
@@ -421,21 +441,46 @@ h1 {
 .streamlit-expanderContent p,
 .streamlit-expanderContent div { color: var(--muted) !important; }
 
-/* ── Answer box ── */
-.answer-card {
+/* ── Chat message bubbles ── */
+.chat-user-bubble {
+    background: linear-gradient(135deg, rgba(26,61,99,0.85), rgba(15,34,64,0.9));
+    border: 1px solid rgba(74,127,167,0.3);
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin-bottom: 8px;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 4px 16px rgba(10,25,49,0.3);
+}
+
+.chat-user-label {
+    font-size: 0.6rem;
+    letter-spacing: 0.28em;
+    color: var(--mid);
+    text-transform: uppercase;
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+
+.chat-user-text {
+    color: var(--text) !important;
+    font-size: 0.95rem !important;
+    line-height: 1.6;
+}
+
+.chat-answer-bubble {
     background: linear-gradient(135deg, rgba(26,61,99,0.8) 0%, rgba(10,25,49,0.9) 100%);
     border: 1px solid rgba(74,127,167,0.4);
     border-left: 4px solid #4A7FA7;
     border-radius: 14px;
     padding: 1.75rem 2rem;
-    margin: 1.25rem 0;
+    margin: 0 0 1rem 0;
     backdrop-filter: blur(12px);
     box-shadow: 0 8px 40px rgba(10,25,49,0.5), 0 0 0 1px rgba(74,127,167,0.1);
     position: relative;
     overflow: hidden;
 }
 
-.answer-card::before {
+.chat-answer-bubble::before {
     content: '';
     position: absolute;
     inset: 0;
@@ -443,7 +488,7 @@ h1 {
     pointer-events: none;
 }
 
-.answer-label {
+.chat-answer-label {
     font-size: 0.6rem;
     letter-spacing: 0.28em;
     color: var(--mid);
@@ -485,7 +530,7 @@ h1 {
     50%      { box-shadow: 0 0 0 6px rgba(79,195,161,0); }
 }
 
-.answer-text {
+.chat-answer-text {
     font-size: 0.93rem !important;
     line-height: 1.85 !important;
     color: #E8F4FF !important;
@@ -633,7 +678,7 @@ code {
 """
 
 
-# ── Unicode safety ─────────────────────────────────────────────────────────────
+# ── Unicode safety helper ──────────────────────────────────────────────────────
 def _safe_latin1(text: str) -> str:
     if not isinstance(text, str):
         text = str(text)
@@ -642,6 +687,64 @@ def _safe_latin1(text: str) -> str:
 
 
 # ── Notes helpers ──────────────────────────────────────────────────────────────
+def build_markdown_notes(notes: list[dict]) -> str:
+    lines = [
+        "# MindWeave RAG System — Research Notes",
+        f"_Generated on {datetime.now().strftime('%Y-%m-%d %H:%M')}_",
+        "",
+        "---",
+        "",
+    ]
+    for i, entry in enumerate(notes, start=1):
+        lines.append(f"## Note {i}")
+        lines.append(f"**🕐 {entry['timestamp']}**")
+        lines.append("")
+        lines.append("### ❓ Question")
+        lines.append(entry["question"])
+        lines.append("")
+        lines.append("### 💡 Answer")
+        lines.append(entry["answer"])
+        lines.append("")
+        if entry.get("sources"):
+            lines.append("### 📎 Sources")
+            for src in entry["sources"]:
+                lines.append(
+                    f"- `{src['file']}` · Page {src['page']} · "
+                    f"Section: {src['section']} · Score: {src['score']:.4f}"
+                )
+            lines.append("")
+        lines.append("---")
+        lines.append("")
+    return "\n".join(lines)
+
+
+def build_txt_notes(notes: list[dict]) -> str:
+    lines = [
+        "MINDWEAVE RAG SYSTEM — RESEARCH NOTES",
+        f"Generated on {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+        "=" * 60,
+        "",
+    ]
+    for i, entry in enumerate(notes, start=1):
+        lines.append(f"NOTE {i}  [{entry['timestamp']}]")
+        lines.append("-" * 60)
+        lines.append(f"QUESTION:\n{entry['question']}")
+        lines.append("")
+        lines.append(f"ANSWER:\n{entry['answer']}")
+        lines.append("")
+        if entry.get("sources"):
+            lines.append("SOURCES:")
+            for src in entry["sources"]:
+                lines.append(
+                    f"  - {src['file']} | Page {src['page']} | "
+                    f"Section: {src['section']} | Score: {src['score']:.4f}"
+                )
+            lines.append("")
+        lines.append("=" * 60)
+        lines.append("")
+    return "\n".join(lines)
+
+
 def build_pdf_notes(notes: list[dict]) -> bytes:
     from fpdf import FPDF
 
@@ -666,7 +769,7 @@ def build_pdf_notes(notes: list[dict]) -> bytes:
             self.set_font("Helvetica", "I", 7)
             self.set_text_color(*MUTED)
             self.cell(0, 6, _safe_latin1(
-                f"MindWeave Research Notes  -  Page {self.page_no()}"
+                f"MindWeave RAG System Research Notes  -  Page {self.page_no()}"
             ), align="C")
 
     pdf = NotesPDF(orientation="P", unit="mm", format="A4")
@@ -759,13 +862,18 @@ def add_to_notes(question: str, answer: str, result) -> None:
 
 # ── App state ──────────────────────────────────────────────────────────────────
 def ensure_state():
-    defaults = {
-        "session_id": None, "indexed_files": {}, "notes": [],
-        "last_answer": None, "query_count": 0, "total_chunks": 0, "groq_status": None,
-    }
-    for k, v in defaults.items():
-        if k not in st.session_state:
-            st.session_state[k] = v
+    if "session_id" not in st.session_state:
+        st.session_state.session_id = None
+    if "indexed_files" not in st.session_state:
+        st.session_state.indexed_files = {}
+    if "notes" not in st.session_state:
+        st.session_state.notes = []
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = []
+    if "uploader_key" not in st.session_state:
+        st.session_state.uploader_key = 0
+    if "groq_status" not in st.session_state:
+        st.session_state.groq_status = None
 
 
 @st.cache_resource(show_spinner=False)
@@ -779,10 +887,10 @@ def get_retrieval_pipeline(): return RetrievalPipeline()
 def persist_uploaded_file(uploaded_file, session_id):
     session_dir = RAW_DOCS_DIR / session_id
     session_dir.mkdir(parents=True, exist_ok=True)
-    fp = session_dir / Path(uploaded_file.name).name
-    with open(fp, "wb") as f:
+    file_path = session_dir / Path(uploaded_file.name).name
+    with open(file_path, "wb") as f:
         f.write(uploaded_file.getbuffer())
-    return fp
+    return file_path
 
 
 def is_supported(filename):
@@ -799,7 +907,7 @@ def render_sidebar():
                 -webkit-background-clip:text;-webkit-text-fill-color:transparent;
                 letter-spacing:-0.03em;">MindWeave</div>
             <div style="font-size:0.52rem;letter-spacing:0.28em;color:#7aaec8;
-                text-transform:uppercase;margin-top:3px;">Intelligence Platform</div>
+                text-transform:uppercase;margin-top:3px;">RAG System</div>
         </div>
         <div class="sb-sep"></div>
         """, unsafe_allow_html=True)
@@ -819,16 +927,16 @@ def render_sidebar():
         with c1:
             if st.button("＋ New", key="new_sess"):
                 ip = get_ingestion_pipeline()
-                st.session_state.update({
-                    "session_id": ip.generate_session_id(),
-                    "indexed_files": {}, "notes": [], "last_answer": None,
-                    "query_count": 0, "total_chunks": 0,
-                })
+                st.session_state.session_id = ip.generate_session_id()
+                st.session_state.indexed_files = {}
+                st.session_state.notes = []
+                st.session_state.chat_history = []
+                st.session_state.uploader_key += 1
                 st.rerun()
         with c2:
             if st.button("⟳ Groq", key="chk_groq"):
-                s = get_retrieval_pipeline().get_groq_status()
-                st.session_state.groq_status = s
+                pipeline = get_retrieval_pipeline()
+                st.session_state.groq_status = pipeline.get_groq_status()
 
         if st.session_state.groq_status:
             s = st.session_state.groq_status
@@ -836,8 +944,8 @@ def render_sidebar():
             st.markdown(f'<div style="font-size:0.65rem;color:{color};margin-top:0.3rem;">{icon} {txt}</div>', unsafe_allow_html=True)
 
         st.markdown('<div class="sb-sec">Analytics</div>', unsafe_allow_html=True)
-        for lbl, val in [("Queries", st.session_state.query_count),
-                          ("Chunks",  st.session_state.total_chunks),
+        query_count = len(st.session_state.chat_history)
+        for lbl, val in [("Queries", query_count),
                           ("Docs",    len(st.session_state.indexed_files))]:
             st.markdown(f"""
             <div class="sb-stat">
@@ -876,89 +984,140 @@ def render_sidebar():
             st.markdown(f'<span class="stack-badge">{t}</span>', unsafe_allow_html=True)
 
 
-# ── Sources ───────────────────────────────────────────────────────────────────
-def render_sources(result):
-    if not result.sources:
-        st.info("No retrieved chunks to display.")
-        return
-
-    st.markdown('<div class="citations-header">Citations</div>', unsafe_allow_html=True)
-    pills = "".join(
-        f'<span class="cite-pill"><span class="cite-num">#{i}</span> '
-        f'pg {c.page_number or "—"} · {c.similarity_score:.3f}</span>'
-        for i, c in enumerate(result.sources, 1)
-    )
-    st.markdown(f'<div style="margin-bottom:1.25rem;">{pills}</div>', unsafe_allow_html=True)
-
-    st.markdown('<div class="citations-header">Source Chunks</div>', unsafe_allow_html=True)
-    for i, c in enumerate(result.sources, 1):
-        pg = c.page_number or "N/A"
-        label = f"#{i}  ·  {c.source_file}  ·  pg {pg}  ·  score {c.similarity_score:.4f}  ·  {c.section or 'General'}"
-        with st.expander(label):
-            st.write(c.text)
-
-
 # ── Voice helper ──────────────────────────────────────────────────────────────
-def speak_answer(answer_text: str) -> None:
+def voice_player(answer_text: str, uid: str) -> None:
     safe = answer_text.replace("\\", "\\\\").replace("`", "\\`").replace("$", "\\$")
+    auto = "true" if uid.endswith("__new") else "false"
     html = f"""
-<div id="voice-bar" style="
-    display:flex; align-items:center; gap:12px;
+<div id="vbar-{uid}" style="
+    display:flex; align-items:center; gap:10px;
     background:rgba(26,61,99,0.7);
     border:1px solid rgba(74,127,167,0.35);
-    border-radius:8px; padding:10px 16px; margin:10px 0 6px;
+    border-radius:8px; padding:10px 16px; margin:8px 0 4px;
     backdrop-filter:blur(8px);
     font-family:'DM Sans',sans-serif;">
-  <span id="voice-icon" style="font-size:1.2rem;">🔊</span>
-  <span id="voice-status" style="color:#B3CFE5;font-size:0.78rem;font-weight:600;
-    letter-spacing:0.07em;text-transform:uppercase;flex:1;">Speaking answer...</span>
-  <button id="stop-btn" onclick="stopSpeech()" style="
-    background:transparent;color:#4A7FA7;
-    border:1.5px solid rgba(74,127,167,0.4);
-    border-radius:6px;padding:4px 12px;
-    font-family:'DM Sans',sans-serif;font-size:0.75rem;font-weight:600;
-    letter-spacing:0.07em;text-transform:uppercase;cursor:pointer;
-    transition:all .2s ease;">Stop</button>
+
+  <span id="vicon-{uid}" style="font-size:1.1rem;">🔊</span>
+
+  <span id="vstatus-{uid}" style="
+    color:#B3CFE5; font-size:0.78rem; font-weight:600;
+    letter-spacing:0.07em; text-transform:uppercase; flex:1;">
+    Ready
+  </span>
+
+  <button onclick="vplay_{uid}()" id="vplaybtn-{uid}" style="
+    background:linear-gradient(135deg,#1A3D63,#4A7FA7);
+    color:#F6FAFD; border:1px solid rgba(179,207,229,0.25); border-radius:6px;
+    padding:4px 12px; font-size:0.72rem; font-weight:600;
+    letter-spacing:0.08em; text-transform:uppercase;
+    cursor:pointer; transition:all .2s ease;
+    box-shadow:0 2px 8px rgba(10,25,49,0.3);">
+    ▶ Play
+  </button>
+
+  <button onclick="vstop_{uid}()" id="vstopbtn-{uid}" style="
+    display:none;
+    background:transparent; color:#B3CFE5;
+    border:1.5px solid rgba(179,207,229,0.3);
+    border-radius:6px; padding:4px 12px;
+    font-size:0.72rem; font-weight:600;
+    letter-spacing:0.08em; text-transform:uppercase;
+    cursor:pointer; transition:all .2s ease;">
+    ■ Stop
+  </button>
 </div>
+
 <script>
 (function() {{
-  window.speechSynthesis.cancel();
-  const utter = new SpeechSynthesisUtterance(`{safe}`);
-  utter.rate=1.0; utter.pitch=1.0; utter.volume=1.0;
+  const TEXT   = `{safe}`;
+  const AUTO   = {auto};
+  let   utter  = null;
+
   function pickVoice() {{
     const voices = window.speechSynthesis.getVoices();
-    const pref = ["Google US English","Google UK English Female","Microsoft Aria","Samantha"];
-    for(const n of pref){{ const v=voices.find(v=>v.name===n); if(v) return v; }}
-    return voices.find(v=>v.lang.startsWith("en"))||voices[0]||null;
+    const preferred = ["Google US English","Google UK English Female",
+                       "Microsoft Aria","Samantha","Karen","Moira"];
+    for (const name of preferred) {{
+      const v = voices.find(v => v.name === name);
+      if (v) return v;
+    }}
+    return voices.find(v => v.lang.startsWith("en")) || voices[0] || null;
   }}
-  function start() {{ const v=pickVoice(); if(v) utter.voice=v; window.speechSynthesis.speak(utter); }}
-  if(window.speechSynthesis.getVoices().length===0) window.speechSynthesis.onvoiceschanged=start;
-  else start();
-  utter.onend=function(){{
-    const s=document.getElementById("voice-status");
-    const ic=document.getElementById("voice-icon");
-    const b=document.getElementById("stop-btn");
-    if(s) s.textContent="Done speaking"; if(ic) ic.textContent="✅"; if(b) b.style.display="none";
-  }};
-  window.stopSpeech=function(){{
+
+  function setUI(state) {{
+    const icon    = document.getElementById("vicon-{uid}");
+    const status  = document.getElementById("vstatus-{uid}");
+    const playbtn = document.getElementById("vplaybtn-{uid}");
+    const stopbtn = document.getElementById("vstopbtn-{uid}");
+    if (state === "playing") {{
+      if (icon)    icon.textContent    = "🔊";
+      if (status)  status.textContent  = "Speaking...";
+      if (playbtn) playbtn.style.display = "none";
+      if (stopbtn) stopbtn.style.display = "inline-block";
+    }} else if (state === "stopped") {{
+      if (icon)    icon.textContent    = "⏹";
+      if (status)  status.textContent  = "Stopped";
+      if (playbtn) {{ playbtn.textContent = "↺ Replay"; playbtn.style.display = "inline-block"; }}
+      if (stopbtn) stopbtn.style.display = "none";
+    }} else if (state === "done") {{
+      if (icon)    icon.textContent    = "✓";
+      if (status)  status.textContent  = "Done";
+      if (playbtn) {{ playbtn.textContent = "↺ Replay"; playbtn.style.display = "inline-block"; }}
+      if (stopbtn) stopbtn.style.display = "none";
+    }} else {{
+      if (icon)    icon.textContent    = "🔊";
+      if (status)  status.textContent  = "Ready";
+      if (playbtn) {{ playbtn.textContent = "▶ Play"; playbtn.style.display = "inline-block"; }}
+      if (stopbtn) stopbtn.style.display = "none";
+    }}
+  }}
+
+  function doPlay() {{
     window.speechSynthesis.cancel();
-    const s=document.getElementById("voice-status");
-    const ic=document.getElementById("voice-icon");
-    const b=document.getElementById("stop-btn");
-    if(s) s.textContent="Stopped"; if(ic) ic.textContent="⏹"; if(b) b.style.display="none";
+    utter = new SpeechSynthesisUtterance(TEXT);
+    utter.rate = 1.0; utter.pitch = 1.0; utter.volume = 1.0;
+    utter.onend  = () => setUI("done");
+    utter.onerror = () => setUI("ready");
+    const voice = pickVoice();
+    if (voice) utter.voice = voice;
+    window.speechSynthesis.speak(utter);
+    setUI("playing");
+  }}
+
+  window["vplay_{uid}"] = function() {{
+    if (window.speechSynthesis.getVoices().length === 0) {{
+      window.speechSynthesis.onvoiceschanged = doPlay;
+    }} else {{
+      doPlay();
+    }}
   }};
+
+  window["vstop_{uid}"] = function() {{
+    window.speechSynthesis.cancel();
+    setUI("stopped");
+  }};
+
+  if (AUTO) {{
+    setTimeout(function() {{
+      if (window.speechSynthesis.getVoices().length === 0) {{
+        window.speechSynthesis.onvoiceschanged = doPlay;
+      }} else {{
+        doPlay();
+      }}
+    }}, 300);
+  }}
 }})();
 </script>
 """
     import streamlit.components.v1 as components
-    components.html(html, height=70)
+    components.html(html, height=58)
 
 
 # ── Main ───────────────────────────────────────────────────────────────────────
 def main():
-    st.set_page_config(page_title="MindWeave", page_icon="🧠", layout="wide")
+    st.set_page_config(page_title="MindWeave RAG System", page_icon="🧠", layout="wide")
     st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
-    st.title("MindWeave")
+    st.title("MindWeave RAG System")
     st.caption("Powered by Groq llama-3.3-70b · Hybrid FAISS + BM25 Retrieval")
     ensure_state()
     render_sidebar()
@@ -969,58 +1128,101 @@ def main():
         "Upload PDF, DOCX, or TXT files",
         type=["pdf", "docx", "txt"],
         accept_multiple_files=True,
+        key=f"file_uploader_{st.session_state.uploader_key}",
     )
 
     if st.button("Index Uploaded Documents", disabled=not uploaded_files):
         indexed_now = {}
-        with st.spinner("Embedding & indexing documents…"):
-            ip = get_ingestion_pipeline()
-            if not st.session_state.session_id:
-                st.session_state.session_id = ip.generate_session_id()
-            for uf in uploaded_files:
-                if not is_supported(uf.name):
-                    st.error(f"Unsupported: {uf.name}")
-                    continue
-                try:
-                    fp  = persist_uploaded_file(uf, st.session_state.session_id)
-                    cnt = ip.ingest(fp, st.session_state.session_id)
-                    indexed_now[uf.name] = cnt
-                    st.session_state.total_chunks += cnt
-                except Exception as e:
-                    st.error(f"{uf.name}: {e}")
-        st.session_state.indexed_files.update(indexed_now)
-        if indexed_now:
-            total = sum(indexed_now.values())
-            st.success(f"✓ {len(indexed_now)} file(s) · {total} chunks indexed")
-            for name, cnt in indexed_now.items():
-                st.write(f"- {name}: {cnt} chunks")
-        else:
-            st.warning("No documents were indexed.")
+        try:
+            with st.spinner("Embedding & indexing documents…"):
+                ip = get_ingestion_pipeline()
+                if not st.session_state.session_id:
+                    st.session_state.session_id = ip.generate_session_id()
+                for uf in uploaded_files:
+                    if not is_supported(uf.name):
+                        st.error(f"Unsupported: {uf.name}")
+                        continue
+                    try:
+                        fp = persist_uploaded_file(uf, st.session_state.session_id)
+                        cnt = ip.ingest(fp, st.session_state.session_id)
+                        indexed_now[uf.name] = cnt
+                    except Exception as exc:
+                        st.error(f"Failed to index {uf.name}: {exc}")
+            st.session_state.indexed_files.update(indexed_now)
+            if indexed_now:
+                total = sum(indexed_now.values())
+                st.success(f"✓ {len(indexed_now)} file(s) · {total} chunks indexed")
+                for name, cnt in indexed_now.items():
+                    st.write(f"- {name}: {cnt} chunks")
+            else:
+                st.warning("No documents were indexed.")
+        except Exception as exc:
+            st.error(f"Indexing failed: {exc}")
 
     # ── Ask Questions ─────────────────────────────────────────────────────────
     st.header("2) Ask Questions")
-    question = st.text_input(
-        "Ask a question grounded only in uploaded documents",
-        placeholder="e.g. What are the key insights in this document?",
-    )
-    ask_disabled = (
-        not question.strip()
-        or not st.session_state.session_id
-        or not bool(st.session_state.indexed_files)
-    )
 
-    col_ask, col_hint = st.columns([1, 4])
-    with col_ask:
-        ask_clicked = st.button("Get Answer", disabled=ask_disabled, key="ask_btn")
-    with col_hint:
-        if ask_disabled and not st.session_state.indexed_files:
+    # Display full chat history
+    for idx, chat in enumerate(st.session_state.chat_history):
+        if chat.get("_new"):
+            st.session_state.chat_history[idx]["_new"] = False
+
+        st.markdown(
+            f'<div class="chat-user-bubble">'
+            f'<div class="chat-user-label">You</div>'
+            f'<div class="chat-user-text">{chat["question"]}</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+        if not chat["answer_found"]:
+            st.warning(NOT_FOUND_MESSAGE)
+        else:
+            grounded = ""
+            if chat.get("is_grounded"):
+                grounded = '<span class="grounded-badge"><span class="pulse"></span> Grounded</span>'
+
+            answer_html = chat["answer"].replace("\n", "<br>")
             st.markdown(
-                '<span style="font-size:0.72rem;color:#7aaec8;line-height:2.8rem;display:block;">'
-                'Index documents first to enable querying</span>',
+                f'<div class="chat-answer-bubble">'
+                f'<div class="chat-answer-label">Answer {grounded}</div>'
+                f'<div class="chat-answer-text">{answer_html}</div>'
+                f'</div>',
                 unsafe_allow_html=True,
             )
 
-    if ask_clicked:
+            is_newest = (idx == len(st.session_state.chat_history) - 1 and chat.get("_new"))
+            uid = f"chat{idx}{'__new' if is_newest else ''}"
+            voice_player(chat["answer"], uid)
+
+            if chat.get("sources"):
+                pills = "".join(
+                    f'<span class="cite-pill"><span class="cite-num">#{i}</span> '
+                    f'pg {src["page"]} · {src["score"]:.3f}</span>'
+                    for i, src in enumerate(chat["sources"], 1)
+                )
+                st.markdown(
+                    f'<div class="citations-header">Citations</div>'
+                    f'<div style="margin-bottom:0.75rem;">{pills}</div>',
+                    unsafe_allow_html=True,
+                )
+                with st.expander(f"Source chunks for: {chat['question'][:60]}…"):
+                    for sidx, src in enumerate(chat["sources"], start=1):
+                        st.markdown(
+                            f"- Source {sidx}: `{src['file']}` | Page: `{src['page']}` "
+                            f"| Section: `{src['section']}` | Score: `{src['score']:.4f}`"
+                        )
+
+        st.markdown("")
+
+    # Chat input
+    if not st.session_state.session_id or not bool(st.session_state.indexed_files):
+        st.info("Upload and index documents first, then ask your questions here.")
+        question = None
+    else:
+        question = st.chat_input("Ask a question grounded only in uploaded documents…")
+
+    if question and question.strip():
         try:
             rp = get_retrieval_pipeline()
             if not rp.check_session_ready(st.session_state.session_id):
@@ -1030,33 +1232,27 @@ def main():
                 result = rp.query(
                     question=question.strip(), session_id=st.session_state.session_id
                 )
-            st.session_state.query_count += 1
-            st.session_state.last_answer = result
-        except Exception as e:
-            st.error(f"Query failed: {e}")
 
-    # ── Answer display ────────────────────────────────────────────────────────
-    if st.session_state.last_answer:
-        result = st.session_state.last_answer
+            chat_sources = []
+            if result.sources:
+                for chunk in result.sources:
+                    chat_sources.append({
+                        "file": chunk.source_file,
+                        "page": chunk.page_number if chunk.page_number else "N/A",
+                        "section": chunk.section or "General",
+                        "score": chunk.similarity_score,
+                    })
 
-        if not result.answer_found:
-            st.warning(NOT_FOUND_MESSAGE)
-        else:
-            grounded = ""
-            if result.is_grounded:
-                grounded = '<span class="grounded-badge"><span class="pulse"></span> Grounded</span>'
+            st.session_state.chat_history.append({
+                "question": question.strip(),
+                "answer": result.answer if result.answer_found else NOT_FOUND_MESSAGE,
+                "answer_found": result.answer_found,
+                "is_grounded": getattr(result, "is_grounded", False),
+                "sources": chat_sources,
+                "_new": True,
+            })
 
-            answer_html = result.answer.replace("\n", "<br>")
-            st.markdown(f"""
-            <div class="answer-card">
-                <div class="answer-label">Answer {grounded}</div>
-                <div class="answer-text">{answer_html}</div>
-            </div>
-            """, unsafe_allow_html=True)
-
-            speak_answer(result.answer)
-
-            if ask_clicked:
+            if result.answer_found:
                 add_to_notes(question.strip(), result.answer, result)
                 n = len(st.session_state.notes)
                 st.success(
@@ -1064,7 +1260,10 @@ def main():
                     "Scroll down to Section 3 to download."
                 )
 
-        render_sources(result)
+            st.rerun()
+
+        except Exception as exc:
+            st.error(f"Failed to answer question: {exc}")
 
     # ── Research Notes ────────────────────────────────────────────────────────
     if st.session_state.notes:
